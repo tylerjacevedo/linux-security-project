@@ -69,6 +69,8 @@ The two layers cover two different threats: **the key** stops the network/server
 ssh-keygen -t ed25519 -C "tacevedo@ubuntuhomelab-from-mac"
 ```
 
+![Generating the ed25519 key pair](images/01-ssh-keygen.png)
+
 - `ssh-keygen`: the key-generator program; its whole job is to create the key pair
 - `-t ed25519`: `-t` means **type**. You're saying make the key using the ed25519 algorithm (the modern, strong kind)
 - `-C "tacevedo@ubuntuhomelab-from-mac"`: `-C` is the comment feature to label the key so it's distinguishable in the `~/.ssh/authorized_keys` file among other keys
@@ -87,9 +89,13 @@ The `*` character checks for all files starting with `id_ed25519`, whether or no
 ssh-copy-id username@<your-vm-ip>
 ```
 
+![Copying the public key to the VM with ssh-copy-id](images/02-ssh-copy-id.png)
+
 Log in via password one last time in order to drop the public key into the server's `~/.ssh/authorized_keys` directory.
 
 ### Step 3: Log in via SSH Key
+
+![Logging in with the SSH key — prompted for the passphrase, not the server password](images/03-ssh-key-login.png)
 
 Notice this time it asks for the **passphrase** instead of the actual server password. You now have cryptographic, passwordless login to the server.
 
@@ -124,6 +130,8 @@ This confirms the server accepts key-based authentication. It will be the **only
 
 **Confirm your safety net:** keep the current SSH session open throughout. This is your lifeline — if anything goes wrong, this already-authenticated session lets you undo it. Do not close it until you've tested a fresh login.
 
+![Keeping a safety-net SSH session open while editing](images/04-safety-net-sessions.png)
+
 **Back up the config first** — before making changes to any config file, back it up in case you need to restore it:
 
 ```bash
@@ -136,7 +144,17 @@ sudo cp /etc/ssh/sshd_config /etc/ssh/sshd_config.backup
 sudo nano /etc/ssh/sshd_config
 ```
 
+![Opening sshd_config in nano](images/05-open-sshd-config.png)
+
+![Editing the sshd_config file](images/06-edit-sshd-config.png)
+
 Edit the config file by removing the `#` and changing the settings, then write out.
+
+![sshd_config settings updated](images/07-sshd-config-settings.png)
+
+![sshd_config settings updated](images/08-sshd-config-settings-2.png)
+
+![Checking the drop-in override file](images/09-sshd-config-dropin.png)
 
 > **Important:** Modern Ubuntu contains extra config files in a drop-in folder (`/etc/ssh/sshd_config.d/`). SSH pulls the **first value it sees**, and more often than not it reads those extra config files first, which can override your changes. Make sure to check and update those override files too.
 
@@ -146,13 +164,19 @@ Edit the config file by removing the `#` and changing the settings, then write o
 sudo sshd -t
 ```
 
+![Validating the config with sshd -t](images/10-sshd-validate.png)
+
 **Restart the SSH daemon** to apply changes:
 
 ```bash
 sudo systemctl restart ssh
 ```
 
+![Restarting the SSH daemon](images/11-restart-ssh.png)
+
 **Last step:** rerun the forced password login command in a new terminal to confirm password access has been disabled.
+
+![Forced password login now refused — Permission denied (publickey)](images/12-password-login-denied.png)
 
 ---
 
@@ -179,23 +203,46 @@ You're currently using SSH to connect to the server remotely over port 22. If yo
 
 ### Implementation
 
-```bash
-# 1. Check the current state of the firewall
-sudo ufw status
+**1. Check the current state of the firewall:**
 
-# 2. Set the default policies
+```bash
+sudo ufw status
+```
+
+![Initial ufw status — inactive](images/13-ufw-status-initial.png)
+
+**2. Set the default policies:**
+
+```bash
 sudo ufw default deny incoming    # Block all inbound connections by default
 sudo ufw default allow outgoing   # Let your server reach out (updates, DNS, etc.)
+```
 
-# 3. Allow SSH (always do this before enabling)
+![Setting default deny incoming / allow outgoing](images/14-ufw-default-policies.png)
+
+**3. Allow SSH (always do this before enabling):**
+
+```bash
 sudo ufw allow OpenSSH
+```
 
-# 4. Enable the firewall
+![Allowing OpenSSH through the firewall](images/15-ufw-allow-openssh.png)
+
+**4. Enable the firewall:**
+
+```bash
 sudo ufw enable
+```
 
-# 5. Verify
+![Enabling ufw](images/16-ufw-enable.png)
+
+**5. Verify:**
+
+```bash
 sudo ufw status verbose
 ```
+
+![Verifying ufw status — active, only OpenSSH allowed](images/17-ufw-status-verbose.png)
 
 You should see the rules allowing port 22, denying incoming, and allowing outgoing.
 
@@ -205,20 +252,38 @@ You should see the rules allowing port 22, denying incoming, and allowing outgoi
 
 This enables automatic downloading and installation of software updates. Updates provide important patches to plug security holes and fix bugs. By auto-installing security patches, the server always stays up to date without you having to babysit it. The solution is a package called **unattended-upgrades**.
 
+**1. Install unattended-upgrades** (`-y` answers yes to all follow-up questions):
+
 ```bash
-# 1. Install unattended-upgrades (-y answers yes to all follow-up questions)
 sudo apt update
 sudo apt install unattended-upgrades -y
+```
 
-# 2. Enable it with the official setup helper
+![Installing unattended-upgrades](images/18-install-unattended-upgrades.png)
+
+**2. Enable it with the official setup helper:**
+
+```bash
 sudo dpkg-reconfigure --priority=low unattended-upgrades
+```
 
-# 3. Verify it's active
+![Enabling unattended-upgrades via dpkg-reconfigure](images/19-dpkg-reconfigure.png)
+
+**3. Verify it's active:**
+
+```bash
 sudo systemctl status unattended-upgrades
+```
 
-# 4. Confirm what it will patch
+![unattended-upgrades service active](images/20-unattended-upgrades-status.png)
+
+**4. Confirm what it will patch:**
+
+```bash
 cat /etc/apt/apt.conf.d/20auto-upgrades
 ```
+
+![Confirming both auto-upgrade lines are set to 1](images/21-auto-upgrades-conf.png)
 
 You want to see both lines set to `"1"`:
 
@@ -234,6 +299,8 @@ ls /var/log/unattended-upgrades/
 sudo cat /var/log/unattended-upgrades/unattended-upgrades.log
 ```
 
+![Locating the unattended-upgrades log](images/22-unattended-upgrades-log.png)
+
 > Knowing where a service logs is a core sysadmin instinct. For most services, that answer is somewhere under `/var/log/`.
 
 ---
@@ -246,22 +313,40 @@ Fail2ban watches your logs, and when an IP racks up repeated failures, it auto-b
 
 **How it works:** reads `/var/log/` → manipulates the firewall → runs as a background daemon (always on).
 
+**1. Install fail2ban:**
+
 ```bash
-# 1. Install fail2ban
 sudo apt install fail2ban -y
+```
 
-# 2. Create your own config
-# Don't edit the original directly — package updates overwrite it.
-# Make a .local copy that takes precedence:
+![Installing fail2ban](images/23-install-fail2ban.png)
+
+**2. Create your own config.** Don't edit the original directly — package updates overwrite it. Make a `.local` copy that takes precedence:
+
+```bash
 sudo cp /etc/fail2ban/jail.conf /etc/fail2ban/jail.local
+```
 
-# 3. Start it and enable on boot
+![Creating jail.local from jail.conf](images/24-fail2ban-jail-local.png)
+
+**3. Start it and enable on boot:**
+
+```bash
 sudo systemctl enable --now fail2ban
+```
 
-# 4. Verify it's running and watching SSH
+![Enabling fail2ban on boot](images/25-fail2ban-enable.png)
+
+**4. Verify it's running and watching SSH:**
+
+```bash
 sudo systemctl status fail2ban
 sudo fail2ban-client status sshd
 ```
+
+![fail2ban service running](images/26-fail2ban-status.png)
+
+![fail2ban sshd jail active](images/27-fail2ban-sshd-status.png)
 
 ---
 
