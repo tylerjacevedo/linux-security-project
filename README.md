@@ -2,6 +2,8 @@
 
 Hardening an **Ubuntu Server** to a professional standard — locking down a homelab server to significantly reduce the possibility of a breach, while understanding the *why* behind every control.
 
+> Built on **Ubuntu Server 24.04 LTS**, but the hardening concepts apply to any Linux distribution.
+
 ## Contents
 - [SSH Key Authentication](#ssh-key-authentication)
 - [Creating SSH Key Authentication](#creating-ssh-key-authentication)
